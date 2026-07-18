@@ -7,7 +7,6 @@
 <style>
   :root{
     --lcd-ink:#fdf7ef;
-    --lcd-dim:#cbb8c9;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0; height:100%; width:100%;}
@@ -20,64 +19,77 @@
     overflow:hidden;
   }
 
-  .cam-wrap{
-    width:100%; height:100%;
-    display:flex; align-items:center; justify-content:center;
+  /* This box has the LANDSCAPE shape (2048:1152) and just centers things on screen. */
+  .rotator{
+    position:relative;
+    width:min(94vw, 94vh * 2048 / 1152);
+    aspect-ratio:2048 / 1152;
   }
 
-  /* portrait image (1152 x 2048) rotated 90° clockwise = landscape (2048 x 1152) */
+  /* This is the REAL camera photo, kept in its natural PORTRAIT shape (1152:2048),
+     sized so that once rotated 90°, it exactly fills the landscape box above.
+     Every child inside (screen, buttons) is positioned using the ORIGINAL portrait
+     percentages, so rotating this one element rotates everything together —
+     nothing can drift apart. */
   .cam{
-    position:relative;
-    width:100vmin;
-    aspect-ratio:2048 / 1152;
-    filter:drop-shadow(0 8px 16px rgba(0,0,0,.6));
+    position:absolute;
+    top:50%; left:50%;
+    width:56.25%;   /* = 1152/2048 as a percentage of the landscape box's width  */
+    height:177.78%; /* = 2048/1152 as a percentage of the landscape box's height */
+    transform:translate(-50%, -50%) rotate(90deg);
+    transform-origin:center center;
     touch-action:manipulation;
     user-select:none;
   }
+
   .chassis{
     position:absolute; inset:0; width:100%; height:100%;
     object-fit:contain; pointer-events:none;
   }
 
-  /* LCD screen (white viewport on the digicam) */
+  /* LCD screen — positions taken directly from the ORIGINAL portrait photo,
+     unrotated. Because .cam rotates as a whole, this rotates correctly with it. */
   .lcd{
     position:absolute;
-    /* after 90° rotation, the original vertical bounds become horizontal bounds */
-    left:20.1%; top:34.6%; width:30.9%; height:41.4%;
+    left:34.6%; top:42.3%; width:41.4%; height:30.9%;
     overflow:hidden;
     background:#0e0b10;
     border-radius:2px;
   }
-  .viewport{position:absolute; inset:0; display:grid; place-items:center; background:#141014;}
+  .viewport{position:absolute; inset:0; display:grid; place-items:center; background:#141014; overflow:hidden;}
   .frame-img{
-    position:absolute; inset:0; width:100%; height:100%;
+    position:absolute;
+    width:141.4%; height:79.6%;
+    left:50%; top:50%;
     object-fit:contain; opacity:0; transition:opacity .28s ease;
     background:#141014;
+    /* counter-rotate the actual photo/note content so IT displays upright
+       to the viewer, since its parent .cam is rotated 90° */
+    transform:translate(-50%,-50%) rotate(-90deg);
+    transform-origin:center center;
   }
   .frame-img.show{opacity:1;}
   @media (prefers-reduced-motion:reduce){ .frame-img{transition:none;} }
 
-  /* note frames get a soft warm mat */
   .lcd.is-note .viewport{background:radial-gradient(120% 120% at 50% 20%,#fff7ef,#f3e7dc);}
-  .lcd.is-note .frame-img{background:transparent; object-fit:contain;}
+  .lcd.is-note .frame-img{background:transparent;}
 
-  /* tiny status indicator on screen */
   .stat{
-    position:absolute; left:5px; top:4px;
-    font-family:ui-monospace,Menlo,monospace; font-size:clamp(6px,1.6vw,8px);
+    position:absolute; left:4px; top:4px;
+    font-family:ui-monospace,Menlo,monospace; font-size:9px;
     color:var(--lcd-ink); text-shadow:0 1px 2px rgba(0,0,0,.6); opacity:.9;
     display:flex; align-items:center; gap:3px;
+    transform-origin:top left;
   }
   .lcd.is-note .stat{color:#6a4a52; text-shadow:none;}
   .dot{width:4px;height:4px;border-radius:50%;background:#ff5d73;box-shadow:0 0 4px #ff5d73;}
 
-  /* bottom-right tiny caption + counter */
   .hud{
     position:absolute; right:0; bottom:0;
     display:flex; align-items:center; gap:4px;
     padding:3px 4px;
     font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-    font-size:clamp(6px,1.5vw,9px); line-height:1;
+    font-size:9px; line-height:1;
     color:var(--lcd-ink);
     background:linear-gradient(to top, rgba(8,6,10,.72), rgba(8,6,10,0));
     text-shadow:0 1px 2px rgba(0,0,0,.6);
@@ -85,40 +97,30 @@
   }
   .lcd.is-note .hud{color:#6a4a52; text-shadow:none;
     background:linear-gradient(to top, rgba(255,255,255,.85), rgba(255,255,255,0));}
-  .hud .cap{font-size:clamp(5px,1.4vw,8px); max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  .hud .count{opacity:.8; letter-spacing:.3px; font-size:clamp(5px,1.3vw,7px);}
+  .hud .cap{max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .hud .count{opacity:.8; letter-spacing:.3px;}
   .lcd.hud-off .hud{opacity:0;}
 
-  /* ---- invisible button hotspots (only these are clickable) ---- */
+  /* ---- invisible button hotspots, positioned from the same original photo,
+     so they rotate together with everything else and land on the real buttons ---- */
   .hot{
     position:absolute; border:0; padding:0; margin:0;
     background:transparent; cursor:pointer; border-radius:50%;
     outline-offset:2px;
   }
-  .hot:active{background:rgba(255,255,255,.1);}
+  .hot:active{background:rgba(255,255,255,.12);}
   .hot:focus-visible{outline:2px solid #ffd166;}
 
-  /* Button positions AFTER 90° clockwise rotation of the original portrait image.
-     Original portrait hotspots become rotated. The math: (x,y) in portrait becomes
-     (1 - y_ratio, x_ratio) in the rotated 90° image, scaled to the new dimensions.
-  */
-  
-  /* Original pad left (prev): was at 44.5%, 21.6% → now at ~67.9%, 43% */
-  .prev { left:67.9%; top:43%;   width:12%; height:11.5%; }
-  /* Original left round button (prev2): was at 32.5%, 27.4% → now at ~64.1%, 31% */
-  .prev2{ left:64.1%; top:31%;   width:10%; height:12%;  }
-  /* Original pad right (next): was at 61.5%, 21.6% → now at ~67.9%, 60% */
-  .next { left:67.9%; top:60%;   width:12%; height:11.5%; }
-  /* Original right round button (next2): was at 70.5%, 27.4% → now at ~64.1%, 69% */
-  .next2{ left:64.1%; top:69%;   width:10%; height:12%;  }
-  /* Original pad center (info): was at 53.3%, 22% → now at ~70.5%, 51% */
-  .info { left:70.5%; top:51.8%; width:9%;  height:10%;  }
-  /* Original top-right button (home): was at 71%, 15% → now at ~76%, 69% */
-  .home { left:76%;   top:69.5%; width:10.5%;height:12.5%; }
+  .prev { left:44.5%; top:21.6%; width:8.5%; height:9%; }
+  .prev2{ left:32.5%; top:27.4%; width:9%;   height:7%; }
+  .next { left:61.5%; top:21.6%; width:8.5%; height:9%; }
+  .next2{ left:70.5%; top:27.4%; width:9%;   height:7%; }
+  .info { left:53.3%; top:22%;   width:7%;   height:6%; }
+  .home { left:71%;   top:15%;   width:9.5%; height:7.5%; }
 </style>
 </head>
 <body>
-  <div class="cam-wrap">
+  <div class="rotator">
     <div class="cam" id="cam">
       <img class="chassis" id="chassis" src="./camera.png" alt="Canon digicam">
 
@@ -133,7 +135,6 @@
         </div>
       </div>
 
-      <!-- invisible buttons over the real ones — ONLY way to navigate -->
       <button class="hot prev"  id="btnPrev"  aria-label="Previous"></button>
       <button class="hot prev2" id="btnPrev2" aria-label="Previous"></button>
       <button class="hot next"  id="btnNext"  aria-label="Next"></button>
@@ -270,7 +271,6 @@ window.addEventListener("keydown", e => {
   if(e.key === "Home")       home();
 });
 
-// QR
 const modal = $("modal");
 $("shareBtn").onclick = openQR;
 $("closeModal").onclick = () => modal.classList.remove("open");
