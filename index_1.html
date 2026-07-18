@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>for vrinda 💛</title>
+<style>
+  /* ------------------------------------------------------------------
+     EDIT NOTHING HERE unless you know CSS — settings you might change
+     are in the CONFIG block near the bottom (in the <script>).
+  ------------------------------------------------------------------ */
+  :root{
+    --bg1:#241a2b;      /* cozy keepsake background */
+    --bg2:#3a2740;
+    --bg3:#1a1420;
+    --lcd-ink:#fdf7ef;
+    --lcd-dim:#cbb8c9;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; height:100%;}
+  body{
+    min-height:100dvh;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; padding:18px 12px 26px;
+    background:
+      radial-gradient(120% 90% at 50% 0%, var(--bg2) 0%, var(--bg1) 45%, var(--bg3) 100%);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:#e9dcea;
+  }
+
+  .cam-wrap{
+    width:min(430px, 96vw);
+    display:flex; flex-direction:column; align-items:center; gap:12px;
+  }
+
+  /* aspect ratio matches the real photo (1152 x 2048) so hotspots stay aligned */
+  .cam{
+    position:relative;
+    width:100%;
+    aspect-ratio:1152 / 2048;
+    filter:drop-shadow(0 24px 40px rgba(0,0,0,.55));
+    touch-action:manipulation;
+    user-select:none;
+  }
+  .chassis{
+    position:absolute; inset:0; width:100%; height:100%;
+    object-fit:contain; pointer-events:none;
+  }
+  /* fallback if camera.png isn't next to this file yet */
+  .cam.no-chassis{background:transparent;}
+  .cam.no-chassis .chassis-fallback{
+    position:absolute; inset:6% 8%; border-radius:26px;
+    background:linear-gradient(150deg,#e7e4df,#c9c6c1 55%,#b7b4af);
+    box-shadow:inset 0 2px 8px rgba(255,255,255,.6), inset 0 -6px 18px rgba(0,0,0,.25);
+    display:flex; align-items:flex-start; justify-content:center;
+    color:#6a655f; font-size:12px; padding-top:10px; text-align:center;
+  }
+  .cam:not(.no-chassis) .chassis-fallback{display:none;}
+
+  /* ---- the LCD photo viewport, sitting over the white screen ---- */
+  .lcd{
+    position:absolute;
+    left:34.6%; top:42.3%; width:41.4%; height:30.9%;
+    overflow:hidden;
+    background:#0e0b10;
+    border-radius:2px;
+  }
+  .viewport{position:absolute; inset:0; display:grid; place-items:center; background:#141014;}
+  .frame-img{
+    position:absolute; inset:0; width:100%; height:100%;
+    object-fit:contain; opacity:0; transition:opacity .28s ease;
+    background:#141014;
+  }
+  .frame-img.show{opacity:1;}
+  @media (prefers-reduced-motion:reduce){ .frame-img{transition:none;} }
+
+  /* note frames get a soft warm mat behind them */
+  .lcd.is-note .viewport{background:radial-gradient(120% 120% at 50% 20%,#fff7ef,#f3e7dc);}
+  .lcd.is-note .frame-img{background:transparent; object-fit:contain;}
+
+  /* skeuomorphic playback HUD (the one styled flourish) */
+  .hud{
+    position:absolute; left:0; right:0; bottom:0;
+    display:flex; align-items:center; gap:6px;
+    padding:4px 6px;
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    font-size:clamp(7px,2.4vw,11px); line-height:1;
+    color:var(--lcd-ink);
+    background:linear-gradient(to top, rgba(8,6,10,.72), rgba(8,6,10,0));
+    text-shadow:0 1px 2px rgba(0,0,0,.6);
+    transition:opacity .2s ease;
+  }
+  .lcd.is-note .hud{color:#6a4a52; text-shadow:none;
+    background:linear-gradient(to top, rgba(255,255,255,.85), rgba(255,255,255,0));}
+  .hud .play{opacity:.9;}
+  .hud .cap{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .hud .count{opacity:.85; letter-spacing:.5px;}
+  .lcd.hud-off .hud{opacity:0;}
+
+  /* top-left tiny status, like a real playback screen */
+  .stat{
+    position:absolute; left:5px; top:4px;
+    font-family:ui-monospace,Menlo,monospace; font-size:clamp(7px,2.2vw,10px);
+    color:var(--lcd-ink); text-shadow:0 1px 2px rgba(0,0,0,.6); opacity:.9;
+    display:flex; align-items:center; gap:4px;
+  }
+  .lcd.is-note .stat{color:#6a4a52; text-shadow:none;}
+  .dot{width:5px;height:5px;border-radius:50%;background:#ff5d73;box-shadow:0 0 5px #ff5d73;}
+
+  /* ---- invisible tap targets over the real buttons ---- */
+  .hot{
+    position:absolute; border:0; padding:0; margin:0;
+    background:transparent; cursor:pointer; border-radius:50%;
+    outline-offset:3px;
+  }
+  .hot:active{background:rgba(255,255,255,.18);}
+  .hot:focus-visible{outline:3px solid #ffd166;}
+  /* left of the round pad + the round button under it = PREVIOUS */
+  .prev { left:44.5%; top:21.6%; width:8.5%; height:9%; }
+  .prev2{ left:32.5%; top:27.4%; width:9%;   height:7%; }
+  /* right of the round pad + the round button under it = NEXT */
+  .next { left:61.5%; top:21.6%; width:8.5%; height:9%; }
+  .next2{ left:70.5%; top:27.4%; width:9%;   height:7%; }
+  /* centre of the pad = show / hide the little caption */
+  .info { left:53.3%; top:22%;   width:7%;   height:6%; }
+  /* top-right round button = back to the first note */
+  .home { left:71%;   top:15%;   width:9.5%; height:7.5%; }
+
+  /* left / right halves of the screen are tappable too */
+  .swipehalf{position:absolute; top:0; height:100%; width:38%; background:transparent; border:0; cursor:pointer;}
+  .swipehalf.l{left:0;} .swipehalf.r{right:0;}
+  .swipehalf:active{background:rgba(255,255,255,.05);}
+
+  .hint{
+    font-size:13px; color:#d9c6dd; opacity:.9; text-align:center;
+    min-height:18px; transition:opacity .4s ease;
+  }
+  .hint b{color:#ffd166; font-weight:600;}
+
+  .share-pill{
+    appearance:none; border:1px solid rgba(255,255,255,.22);
+    background:rgba(255,255,255,.06); color:#e9dcea;
+    font-size:12.5px; padding:7px 14px; border-radius:999px; cursor:pointer;
+    backdrop-filter:blur(4px);
+  }
+  .share-pill:active{background:rgba(255,255,255,.14);}
+
+  /* QR modal */
+  .modal{
+    position:fixed; inset:0; display:none; place-items:center;
+    background:rgba(10,6,12,.72); backdrop-filter:blur(3px); z-index:20; padding:22px;
+  }
+  .modal.open{display:grid;}
+  .card{
+    background:#faf5f0; color:#3a2b30; border-radius:18px; padding:22px 20px;
+    width:min(320px,90vw); text-align:center; box-shadow:0 30px 60px rgba(0,0,0,.5);
+  }
+  .card h3{margin:0 0 4px; font-size:17px;}
+  .card p{margin:0 0 14px; font-size:13px; color:#7a6a6e;}
+  #qrbox{display:flex; justify-content:center; margin:0 auto 12px; min-height:180px; align-items:center;}
+  #qrbox img,#qrbox canvas{border-radius:10px;}
+  .card .url{font-size:11px; word-break:break-all; color:#9a8a8e; margin-bottom:14px;}
+  .card button.close{
+    appearance:none; border:0; background:#3a2b30; color:#fff;
+    padding:9px 18px; border-radius:999px; font-size:13px; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+  <div class="cam-wrap">
+    <div class="cam" id="cam">
+      <img class="chassis" id="chassis" src="./camera.png" alt="A silver Canon digicam covered in cute stickers">
+      <div class="chassis-fallback">camera.png goes here<br>(upload it next to index.html)</div>
+
+      <div class="lcd" id="lcd">
+        <div class="viewport" id="viewport">
+          <img class="frame-img" id="frameImg" alt="">
+        </div>
+        <div class="stat" id="stat"><span class="dot"></span><span id="statLabel">PLAY</span></div>
+        <div class="hud">
+          <span class="play">▶</span>
+          <span class="cap" id="cap">…</span>
+          <span class="count" id="count">0/0</span>
+        </div>
+        <button class="swipehalf l" id="halfL" aria-label="Previous"></button>
+        <button class="swipehalf r" id="halfR" aria-label="Next"></button>
+      </div>
+
+      <!-- invisible buttons over the real ones -->
+      <button class="hot prev"  id="btnPrev"  aria-label="Previous photo"></button>
+      <button class="hot prev2" id="btnPrev2" aria-label="Previous photo"></button>
+      <button class="hot next"  id="btnNext"  aria-label="Next photo"></button>
+      <button class="hot next2" id="btnNext2" aria-label="Next photo"></button>
+      <button class="hot info"  id="btnInfo"  aria-label="Show or hide caption"></button>
+      <button class="hot home"  id="btnHome"  aria-label="Back to the first note"></button>
+    </div>
+
+    <div class="hint" id="hint">tap <b>◀</b> and <b>▶</b> on the round pad to look through 💛</div>
+    <button class="share-pill" id="shareBtn">show QR code ⧉</button>
+  </div>
+
+  <div class="modal" id="modal">
+    <div class="card">
+      <h3>scan me 💛</h3>
+      <p>point Vrinda's camera here to open the digicam</p>
+      <div id="qrbox">generating…</div>
+      <div class="url" id="urlText"></div>
+      <button class="close" id="closeModal">close</button>
+    </div>
+  </div>
+
+<script>
+/* ============================================================
+   CONFIG  —  the only bit you might need to change
+   ============================================================
+   After you make your GitHub repo, put its name here.
+   Photos live in a folder called "photos", notes in "notes".
+   Just upload image files into those folders — they show up
+   automatically, no need to touch this file again.
+*/
+const CONFIG = {
+  githubUser: "yikes2736-cloud",   // <-- your GitHub username
+  githubRepo: "digicam",           // <-- the repo you create for this
+  branch:     "main",
+  notesPath:  "notes",             // handwritten notes go here (shown first)
+  photosPath: "photos"             // photos go here
+};
+/* ============================================================ */
+
+const $ = id => document.getElementById(id);
+const cam = $("cam"), lcd = $("lcd"), frameImg = $("frameImg");
+const cap = $("cap"), count = $("count"), statLabel = $("statLabel"), hint = $("hint");
+
+// show fallback frame if the camera image isn't there yet (e.g. preview)
+$("chassis").addEventListener("error", () => cam.classList.add("no-chassis"));
+
+const IMG_RE = /\.(jpe?g|png|gif|webp|bmp)$/i;
+
+function prettify(name){
+  return name.replace(/\.[^.]+$/,"")        // drop extension
+             .replace(/^\d+[\s._-]+/,"")     // drop an ordering prefix like "01-"
+             .replace(/[._-]+/g," ")
+             .trim();
+}
+
+async function listFolder(path){
+  if(!CONFIG.githubUser || !CONFIG.githubRepo) return [];
+  const url = `https://api.github.com/repos/${CONFIG.githubUser}/${CONFIG.githubRepo}/contents/${path}?ref=${CONFIG.branch}`;
+  try{
+    const r = await fetch(url, {headers:{Accept:"application/vnd.github+json"}});
+    if(!r.ok) return [];
+    const files = await r.json();
+    if(!Array.isArray(files)) return [];
+    return files
+      .filter(f => f.type === "file" && IMG_RE.test(f.name))
+      .sort((a,b) => a.name.localeCompare(b.name, undefined, {numeric:true}))
+      .map(f => ({ url:f.download_url, caption:prettify(f.name) }));
+  }catch(e){ return []; }
+}
+
+// tiny built-in slides so the screen is never empty / for the preview
+const DEMO = [
+  { kind:"note", url:card("💌", "notes from us", "add your handwritten\nnotes to the notes folder"), caption:"a little note" },
+  { kind:"photo",url:card("📷", "your photos here", "drop pictures into the\nphotos folder from your iPad"), caption:"first photo" }
+];
+function card(emoji, title, sub){
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='400' height='520'>
+    <rect width='100%' height='100%' fill='#f3e7dc'/>
+    <text x='50%' y='38%' font-size='120' text-anchor='middle'>${emoji}</text>
+    <text x='50%' y='58%' font-size='30' text-anchor='middle' fill='#6a4a52' font-family='sans-serif'>${title}</text>
+    ${sub.split("\n").map((l,i)=>`<text x='50%' y='${68+i*7}%' font-size='18' text-anchor='middle' fill='#9a7a82' font-family='sans-serif'>${l}</text>`).join("")}
+  </svg>`;
+  return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
+}
+
+let frames = [], i = 0;
+
+async function boot(){
+  // use cached list first if we have one (survives GitHub rate limits)
+  try{
+    const cached = sessionStorage.getItem("frames");
+    if(cached) frames = JSON.parse(cached);
+  }catch(e){}
+
+  if(!frames.length){
+    const [notes, photos] = await Promise.all([
+      listFolder(CONFIG.notesPath),
+      listFolder(CONFIG.photosPath)
+    ]);
+    frames = [
+      ...notes.map(f => ({...f, kind:"note"})),
+      ...photos.map(f => ({...f, kind:"photo"}))
+    ];
+    if(frames.length){
+      try{ sessionStorage.setItem("frames", JSON.stringify(frames)); }catch(e){}
+    }
+  }
+  if(!frames.length) frames = DEMO;
+  render();
+}
+
+function preload(n){
+  const f = frames[(n+frames.length)%frames.length];
+  if(f){ const im = new Image(); im.src = f.url; }
+}
+
+function render(){
+  const f = frames[i];
+  lcd.classList.toggle("is-note", f.kind === "note");
+  statLabel.textContent = f.kind === "note" ? "NOTE" : "PLAY";
+  frameImg.classList.remove("show");
+  const next = new Image();
+  next.onload = () => { frameImg.src = f.url; frameImg.classList.add("show"); };
+  next.onerror = () => { frameImg.src = f.url; frameImg.classList.add("show"); };
+  next.src = f.url;
+  cap.textContent = f.caption || (f.kind === "note" ? "a note for you" : "");
+  count.textContent = (i+1) + "/" + frames.length;
+  preload(i+1); preload(i-1);
+}
+
+function go(step){
+  i = (i + step + frames.length) % frames.length;
+  render();
+  fadeHint();
+}
+function home(){ i = 0; render(); fadeHint(); }
+
+let hintGone = false;
+function fadeHint(){ if(!hintGone){ hint.style.opacity = 0; hintGone = true; } }
+
+// wire buttons
+$("btnPrev").onclick  = () => go(-1);
+$("btnPrev2").onclick = () => go(-1);
+$("btnNext").onclick  = () => go(1);
+$("btnNext2").onclick = () => go(1);
+$("btnHome").onclick  = home;
+$("halfL").onclick    = () => go(-1);
+$("halfR").onclick    = () => go(1);
+$("btnInfo").onclick  = () => lcd.classList.toggle("hud-off");
+
+// keyboard
+window.addEventListener("keydown", e => {
+  if(e.key === "ArrowLeft")  go(-1);
+  if(e.key === "ArrowRight") go(1);
+  if(e.key === "Home")       home();
+});
+
+// swipe on the screen
+let sx = null;
+lcd.addEventListener("touchstart", e => sx = e.touches[0].clientX, {passive:true});
+lcd.addEventListener("touchend", e => {
+  if(sx === null) return;
+  const dx = e.changedTouches[0].clientX - sx;
+  if(Math.abs(dx) > 30) go(dx < 0 ? 1 : -1);
+  sx = null;
+});
+
+// QR code (self-generated from this page's URL)
+const modal = $("modal");
+$("shareBtn").onclick = openQR;
+$("closeModal").onclick = () => modal.classList.remove("open");
+modal.addEventListener("click", e => { if(e.target === modal) modal.classList.remove("open"); });
+
+function openQR(){
+  const url = location.href.split("#")[0];
+  $("urlText").textContent = url;
+  modal.classList.add("open");
+  const box = $("qrbox");
+  box.innerHTML = "generating…";
+  const draw = () => { box.innerHTML = ""; new QRCode(box, {text:url, width:190, height:190, correctLevel:QRCode.CorrectLevel.M}); };
+  if(window.QRCode){ draw(); }
+  else{
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
+    s.onload = draw;
+    s.onerror = () => { box.innerHTML = "<span style='font-size:12px;color:#9a7a82'>couldn't load the QR — just share the link below</span>"; };
+    document.head.appendChild(s);
+  }
+}
+
+boot();
+</script>
+</body>
+</html>
